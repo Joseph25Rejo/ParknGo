@@ -35,6 +35,26 @@ app.use(cors({
 }));
 app.use(express.json());
 
+// Rate limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
+  message: {
+    error: 'Too many requests from this IP, please try again later.'
+  }
+});
+app.use(limiter);
+
+// Specific rate limiting for auth endpoints
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // limit each IP to 5 requests per windowMs
+  skipSuccessfulRequests: true,
+  message: {
+    error: 'Too many authentication attempts, please try again later.'
+  }
+});
+
 // Add logging middleware
 app.use(logger);
 
@@ -59,7 +79,7 @@ app.get('/api/test/users', async (req, res) => {
     
     // Get the User model from the database connection
     const User = dbConnection.model('User');
-    const users = await User.find({}).select('-password -accessToken -refreshToken');
+    const users = await User.find({}).select('-password -refreshToken');
     
     console.log(`Retrieved ${users.length} users from database`);
     res.json(users);
@@ -69,7 +89,7 @@ app.get('/api/test/users', async (req, res) => {
   }
 });
 
-app.use('/api/auth', checkDatabaseConnection, authRoutes);
+app.use('/api/auth', authLimiter, checkDatabaseConnection, authRoutes);
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ message: 'Something went wrong!' });

@@ -27,9 +27,6 @@ const userSchema = new mongoose.Schema({
     enum: ['local', 'google'],
     default: 'local'
   },
-  accessToken: {
-    type: String
-  },
   refreshToken: {
     type: String
   },

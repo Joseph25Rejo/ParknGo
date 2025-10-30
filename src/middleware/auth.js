@@ -1,4 +1,4 @@
-const { verifyToken } = require('../utils/authUtils');
+const jwt = require('jsonwebtoken');
 
 const authenticateToken = async (req, res, next) => {
   try {
@@ -12,19 +12,18 @@ const authenticateToken = async (req, res, next) => {
       return res.status(401).json({ message: 'Access token required' });
     }
 
-    const user = await verifyToken(token, req);
-
-    if (!user) {
-      console.log('Authentication failed: Invalid token');
-      return res.status(401).json({ message: 'Invalid token' });
-    }
-
-    console.log('Token authentication successful for user:', user._id);
-    req.user = user;
+    // Verify the access token statelessly using JWT_ACCESS_SECRET
+    const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
+    
+    console.log('Token authentication successful for user:', decoded.userId);
+    req.user = { userId: decoded.userId };
     next();
   } catch (error) {
     console.log('Authentication error:', error.message);
-    return res.status(403).json({ message: 'Invalid or expired token' });
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({ message: 'Access token expired' });
+    }
+    return res.status(403).json({ message: 'Invalid access token' });
   }
 };
 
