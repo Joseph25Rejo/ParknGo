@@ -20,8 +20,6 @@ let dbConnection = null;
 connectDB().then(db => {
   dbConnection = db;
   app.locals.dbConnection = db;
-  
-  // Register the User model with the database connection
   if (db && !db.models.User) {
     db.model('User', userSchema);
   }
@@ -35,35 +33,46 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// Rate limiting
+
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
+  windowMs: 15 * 60 * 1000, 
+  max: 100, 
   message: {
     error: 'Too many requests from this IP, please try again later.'
   }
 });
 app.use(limiter);
-
-// Specific rate limiting for auth endpoints
 const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // limit each IP to 5 requests per windowMs
+  windowMs: 15 * 60 * 1000, 
+  max: 5,
   skipSuccessfulRequests: true,
   message: {
     error: 'Too many authentication attempts, please try again later.'
   }
 });
 
-// Add logging middleware
 app.use(logger);
 
-// Initialize Passport
 app.use(passport.initialize());
 
-// Routes
 app.get('/', (req, res) => {
   res.json({ message: 'ParknGo CRUD API' });
+});
+
+app.get('/health', (req, res) => {
+  const healthStatus = {
+    status: 'OK',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    database: dbConnection ? 'Connected' : 'Disconnected'
+  };
+  
+  if (dbConnection) {
+    res.status(200).json(healthStatus);
+  } else {
+    healthStatus.status = 'Service Unavailable';
+    res.status(503).json(healthStatus);
+  }
 });
 app.get('/api/test/users', async (req, res) => {
   try {
@@ -76,8 +85,6 @@ app.get('/api/test/users', async (req, res) => {
         details: 'MongoDB connection not available. Authentication features will be disabled.' 
       });
     }
-    
-    // Get the User model from the database connection
     const User = dbConnection.model('User');
     const users = await User.find({}).select('-password -refreshToken');
     
